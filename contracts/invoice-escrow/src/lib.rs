@@ -1788,6 +1788,9 @@ impl InvoiceEscrow {
         per_investor_cap: Option<i128>,
         token: Address,
     ) -> Result<(), Error> {
+        let config = storage::get_config(env).ok_or(Error::NotInit)?;
+        ensure_not_paused(&config)?;
+
         if funding_target <= 0 {
             return Err(Error::InvalidAmount);
         }
@@ -1835,6 +1838,9 @@ impl InvoiceEscrow {
         additional_amount: i128,
     ) -> Result<(), Error> {
         investor.require_auth();
+        let config = storage::get_config(&env).ok_or(Error::NotInit)?;
+        ensure_not_paused(&config)?;
+
         if additional_amount <= 0 {
             return Err(Error::InvalidAmount);
         }
@@ -1990,6 +1996,9 @@ impl InvoiceEscrow {
         amount: i128,
     ) -> Result<(), Error> {
         investor.require_auth();
+        let config = storage::get_config(&env).ok_or(Error::NotInit)?;
+        ensure_not_paused(&config)?;
+
         if amount <= 0 {
             return Err(Error::InvalidAmount);
         }
@@ -2051,9 +2060,6 @@ impl InvoiceEscrow {
             }
             return Ok(());
         }
-
-        let config = storage::get_config(&env).ok_or(Error::NotInit)?;
-        ensure_not_paused(&config)?;
 
         let mut record =
             storage::get_invoice_record(&env, &invoice_id).ok_or(Error::EscrowNotFound)?;

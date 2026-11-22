@@ -2644,6 +2644,71 @@ fn test_pause_blocks_lifecycle_operations_and_unpause_restores() {
     assert_eq!(pt_client.balance(&seller), 1000);
 }
 
+#[test]
+fn test_pause_blocks_funding_invoice_creation_invest_and_top_up() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let escrow_id = env.register_contract(None, InvoiceEscrow);
+    let client = InvoiceEscrowClient::new(&env, &escrow_id);
+    let admin = Address::generate(&env);
+    let seller = Address::generate(&env);
+    let investor = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let token_id = env.register_stellar_asset_contract_v2(token_admin);
+    let asset = AssetClient::new(&env, &token_id.address());
+    let invoice_id = BytesN::from_array(&env, &[68u8; 32]);
+
+    client.initialize(&admin, &300);
+    client.set_paused(&true);
+
+    assert_eq!(
+        client.try_create_invoice(
+            &invoice_id,
+            &seller,
+            &100_000,
+            &80_000,
+            &100_000,
+            &1000,
+            &1000,
+            &None,
+            &token_id.address(),
+        ),
+        Err(Ok(Error::Paused))
+    );
+    assert_eq!(client.try_get_invoice(&invoice_id), Err(Ok(Error::EscrowNotFound)));
+
+    client.set_paused(&false);
+    client.create_invoice(
+        &invoice_id,
+        &seller,
+        &100_000,
+        &80_000,
+        &100_000,
+        &1000,
+        &1000,
+        &None,
+        &token_id.address(),
+    );
+    asset.mint(&investor, &50_000);
+    client.invest(&invoice_id, &investor, &20_000);
+
+    client.set_paused(&true);
+    let balance_before = TokenClient::new(&env, &token_id.address()).balance(&investor);
+    let invoice_before = client.get_invoice(&invoice_id);
+    assert_eq!(
+        client.try_invest(&invoice_id, &investor, &10_000),
+        Err(Ok(Error::Paused))
+    );
+    assert_eq!(
+        client.try_top_up(&investor, &invoice_id, &10_000),
+        Err(Ok(Error::Paused))
+    );
+    assert_eq!(TokenClient::new(&env, &token_id.address()).balance(&investor), balance_before);
+    assert_eq!(client.get_invoice(&invoice_id), invoice_before);
+    assert_eq!(client.get_investor_position(&invoice_id, &investor), 20_000);
+}
+
 // ========== Commitment Hash Tests (main) ==========
 
 #[test]
