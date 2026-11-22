@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "contracts/categorisation-registry",
+    "contracts/auto-invest",
     "contracts/fee-treasury",
     "contracts/invoice-escrow",
     "contracts/invoice-token",
